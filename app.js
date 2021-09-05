@@ -5,7 +5,7 @@ const logger = require('morgan');
 const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const axios = require('axios');
-const MarriottHotelCodeList = require('./seeds/hotels/MarriottHotelCodeList');
+// const MarriottHotelCodeList = require('./seeds/hotels/MarriottHotelCodeList');
 const app = express();
 
 // view engine setup
@@ -23,7 +23,14 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+const MarriottHotelCodeList = [
+  "ABQFI",
+  "ABERI",
+]
+
+console.log(MarriottHotelCodeList);
 const index = require('./routes/index');
+// const MarriotHotelCodeList = require('./seeds/hotels/MarriottHotelCodeList');
 app.use('/', index);
 
 // catch 404 and forward to error handler
@@ -57,12 +64,22 @@ const succesfulQueries = [
 const unsuccesfulQueries = [
 
 ]
+
+const noRateQueries = [
+
+]
+
+
+const marriottToActivate = [
+
+]
+
 queryHotel = (id, checkin, checkout) => {
-  console.log(`HOTEL ${id} IS BEING QUERIED`);
-  console.log(`HOTEL CHECK IN : ${checkin} `);
-  console.log(`HOTEL CHECK OUT : ${checkout} `);
+  // console.log(`HOTEL ${id} IS BEING QUERIED`);
+  // console.log(`HOTEL CHECK IN : ${checkin} `);
+  // console.log(`HOTEL CHECK OUT : ${checkout} `);
 
-
+  // console.log('CODE LIST :::: ',MarriottHotelCodeList.length)
   axios({
     method: "post",
     url: "https://go3-tn4-aws.derbysoftca.com/api/go/bookingusb/v4/availability",
@@ -96,42 +113,85 @@ queryHotel = (id, checkin, checkout) => {
     .then((payload) => {
       if (payload.status == "200") {
         if (payload.data.roomRates.length >= 1) {
-          succesfulQueries.push({
-            hotelId: payload.data.hotelId, roomRates: payload.data.roomRates
-          })
+          succesfulQueries.push(
+            payload.data.hotelId
+          )
 
 
         } else {
           console.log(payload.data)
+          noRateQueries.push({ hotelId: id, stayRange: payload.data.stayRange })
         }
 
       }
       console.log('succesful hotel queries ::::: ', succesfulQueries.length);
+      console.log('succesful hotel queries WITH NO RATES ::::: ', noRateQueries.length);
     })
     .catch((err) => {
-      unsuccesfulQueries.push(id);
-      if (err && err.code == "ETIMEDOUT") {
-        console.log(':::::::::::::UNDEFINED ERROR :::::::::::::: ', err)
-        setTimeout(function () {
-          console.log(':::::::::::::::ERROR FIX SET TIME OUT ID :::::::::::::::::::::::::::::::', id)
-          queryHotel(id, checkin, checkout)
-        }, 6000)
 
-      }
-      if (err && err.response.status) {
-        if (err.response.status == "429") {
-          setTimeout(function () {
-            console.log(':::::::::::::::ERROR FIX SET TIME OUT ID :::::::::::::::::::::::::::::::', id)
-            queryHotel(id, checkin, checkout)
-          }, 6000)
+
+      // if (err && err.code == "ENOTFOUND") {
+      //   // console.log(':::::::::::::UNDEFINED ERROR :::::::::::::: ', err)
+      //   marriottToActivate.push(id);
+
+      // }
+
+      if (err && err.response) {
+        // console.log('ERROR RESPONSE::::::', err.response)
+        if (err.response.status == 500) {
+
+          if (err.data) {
+            console.log(err)
+            console.log("TIMEOUT OR INTERNAL SERVER ERROR :: ", id);
+            setTimeout(function () {
+              console.log("ENTERING SET TIMEOUT FOR HOTEL : ", id);
+              // console.log(':::::::::::::::ERROR FIX SET TIME OUT ID :::::::::::::::::::::::::::::::', id)
+              queryHotel(id, checkin, checkout)
+            }, 5000)
+          }
+
+        } else {
+          console.log('OTHER ERROR ::::::::::>>>>>>>>>>> ', err)
         }
-      }
-      else {
-        console.log('THE FUCKING BIG ERROR: ', err)
-      }
+        //   if (err.response.status == 500) {
+        //     console.log('nope')
+        //     // setTimeout(function () {
+        //     //   console.log('set time out : ', id)
+        //     //   // console.log(':::::::::::::::ERROR FIX SET TIME OUT ID :::::::::::::::::::::::::::::::', id)
+        //     //   queryHotel(id, checkin, checkout)
+        //     // }, 5000)
+        //   }
+        // }else{
+        //   console.log('NEW ERROR: ',err);
+        //   unsuccesfulQueries.push(id);
+        // }
+
+        // setTimeout(function () {
+        //   console.log(':::::::::::::::ERROR FIX SET TIME OUT ID :::::::::::::::::::::::::::::::', id)
+        //   queryHotel(id, checkin, checkout)
+        // }, 10000)
+        // console.log('ERRRORRRR :::::: ', err)
+        // unsuccesfulQueries.push(id);
 
 
-      console.log('unsuccesful hotel queries :::::: ', unsuccesfulQueries)
+
+        // }
+        // if (err && err.response.status) {
+        //   if (err.response.status == "429") {
+        //     setTimeout(function () {
+        //       console.log(':::::::::::::::ERROR FIX SET TIME OUT ID :::::::::::::::::::::::::::::::', id)
+        //       queryHotel(id, checkin, checkout)
+        //     }, 10000)
+        //   }
+        // }
+        // else {
+        //   console.log('THE FUCKING BIG ERROR: ', err)
+        // }
+      } else {
+        console.log('OTHER ERROR ::::::::::>>>>>>>>>>> ', err)
+      }
+
+      console.log('unsuccesful hotel queries :::::: ', unsuccesfulQueries.length)
     });
 }
 
@@ -139,7 +199,10 @@ queryHotel = (id, checkin, checkout) => {
 async function getQuery(hotelId) {
   let checkin = "2021-09-10";
   let checkout = "2021-09-12";
+
   await queryHotel(hotelId, checkin, checkout)
+
+
 }
 
 
@@ -150,7 +213,25 @@ async function getAllHotels() {
   await Promise.all(apiPromises)
 }
 
-getAllHotels()
+// getAllHotels()
+
+let counter = 0;
+let arr = ["a","b","c","d"];
+drStrange = (str) => {
+  counter += 1;
+
+  console.log(str, '::::THE CURRENT LOOP IN TIME OUT IS ::: ', counter);
+  return;
+
+
+}
+
+setTimeout(function() {
+  arr.forEach(item => {
+    drStrange(item);
+  })
+},10000)
+
 
 
 module.exports = app;
